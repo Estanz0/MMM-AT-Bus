@@ -3,8 +3,8 @@
  * Byrons Smith
  */
 
-var NodeHelper = require("node_helper");
-var request = require('request');
+const NodeHelper = require("node_helper");
+const fetch = require('node-fetch');
 
 module.exports = NodeHelper.create({
 	// Subclass start method.
@@ -12,16 +12,18 @@ module.exports = NodeHelper.create({
 		console.log("Started node_helper.js for MMM-AT-Bus.");
 	},
 
-	socketNotificationReceived: function(notification, bus, stopCode, key) {
+	socketNotificationReceived: function(notification, payload) {
 		console.log(this.name + " node helper received a socket notification: " + notification + " - Payload: " + payload);
-		this.ATGetRequest(bus, syopCode, key);
+		this.ATGetRequest(payload.bus, payload.stopCode, payload.key);
 	},
 
 	ATGetRequest: function(bus, stopCode, key) {
 		var self = this;
-        
-        apiCalls = async (wrapper) => {
-			// Get stop by cod
+		var payload = {};
+		
+
+		apiCalls = async (payload) => {
+			// Get stop by code
 			const stop = await apiCall('general', 'stops/stopCode/', stopCode)
 	
 			// Get rotes by stop
@@ -46,19 +48,15 @@ module.exports = NodeHelper.create({
 					// check if bus has passed our stop
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
 						let deltaArrivalTime = getDeltaTime(stopTime.arrival_time_seconds, departureUpdate.delay);
-						var busTime = document.createElement("div");
-						busTime.innerHTML = this.config.bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
+						payload.timeArr = bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
 						// console.log(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes')
 					}
 				} else {
-					var busTime = document.createElement("div");
-					busTime.innerHTML = this.config.bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
-					// console.log(bus + ' | Scheduled arrival: ' + stopTime.arrival_time)
+					// payload.timeSch = bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
+					payload.timeSch = bus + ' | Scheduled arrival: ' + stopTime.arrival_time;
 				}
-				wrapper.appendChild(busTime);
             }
-            console.log(wrapper);
-            self.sendSocketNotification('AT_GETREQUEST_RESULT', wrapper);
+            self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
 		}
 
 		async function apiCall(feed, urlExt, id) {
@@ -88,7 +86,7 @@ module.exports = NodeHelper.create({
 			for(let i = 0; i < stopTimes.length; i++) {
 				promises.push(apiCall('realtime', 'tripupdates?tripid=', stopTimes[i].trip_id));
 			}
-			result = await Promise.all(promises);
+			result =  Promise.all(promises);
 			return result
 		}
 	
@@ -130,9 +128,10 @@ module.exports = NodeHelper.create({
 			let now = new Date();
 			let nowSeconds = getTimeInSeconds(now);
 			let delta = (scheduledTime + delay) - nowSeconds;
-			console.log(delta)
 			return secondsToMinutes(delta);
 	
 		}
+
+		apiCalls(payload)
 	}
 });

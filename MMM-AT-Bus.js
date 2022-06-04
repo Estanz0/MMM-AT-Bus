@@ -8,22 +8,21 @@ Module.register("MMM-AT-Bus",{
 
 	start: function() {
         Log.info("Starting module: " + this.name);
+        console.log("Starting module: " + this.name);
         var self = this;
 
-		var bus = this.config.bus;
-		var stopCode = this.config.stopCode;
-		var key = this.config.key;
-
+        let payload = {bus: this.config.bus, stopCode: this.config.stopCode, key: this.config.key}
+		
+        
         //Do this once first
-        self.sendSocketNotification('START', bus, stopCode, key);
+        self.sendSocketNotification('START', payload);
 
         //Then every hour
         setInterval(function() {
-            self.sendSocketNotification('START', bus, stopCode, key);
-        }, 30000); //perform every 30 seconds (30000 milliseconds)
+            self.sendSocketNotification('START', payload);
+        }, 3000); //perform every 30 seconds (30000 milliseconds)
     },
 
-	// Override dom generator.
 	// Override dom generator.
     getDom: function() {
         Log.log("Updating MMM-AT-Bus DOM.");
@@ -38,11 +37,11 @@ Module.register("MMM-AT-Bus",{
         wrapper.innerHTML = body;
         return wrapper;
     },
-	socketNotificationReceived: function(notification, wrapper) {
-        Log.log("socket received from Node Helper");
+	socketNotificationReceived: function(notification, payload) {
+        Log.log("MMM-AT-Bus socket received from Node Helper");
         if(notification == "AT_GETREQUEST_RESULT"){
-            Log.log(wrapper);
-            this.text = wrapper;
+            Log.log(payload);
+            this.text = payload.timeArr;
             this.updateDom();
         }
     }
