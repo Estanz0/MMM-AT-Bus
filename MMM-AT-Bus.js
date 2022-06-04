@@ -21,7 +21,7 @@ Module.register("MMM-AT-Bus",{
 		return wrapper;
 
 		apiCalls = async (wrapper) => {
-			// Get stop by code
+			// Get stop by cod
 			const stop = await apiCall('general', 'stops/stopCode/', stopCode)
 	
 			// Get rotes by stop
