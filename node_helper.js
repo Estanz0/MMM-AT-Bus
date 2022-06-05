@@ -13,7 +13,7 @@ module.exports = NodeHelper.create({
 	},
 
 	socketNotificationReceived: function(notification, payload) {
-		console.log(this.name + " node helper received a socket notification: " + notification + " - Payload: " + payload);
+		console.log(this.name + " node helper received a socket notification: " + notification);
 		this.ATGetRequest(payload.bus, payload.stopCode, payload.key);
 	},
 
@@ -24,13 +24,13 @@ module.exports = NodeHelper.create({
 
 		apiCalls = async (payload) => {
 			// Get stop by code
-			const stop = await apiCall('general', 'stops/stopCode/', stopCode)
+			const stop = await apiCall('general', 'stops/stopCode/', stopCode);
 	
 			// Get rotes by stop
 			// const routes = await apiCall('general', 'routes/stopid/', stop[0].stop_id)
 	
 			// Get stop time by stop
-			const stopTimes = await apiCall('general', 'stopTimes/stopId/', stop[0].stop_id)
+			const stopTimes = await apiCall('general', 'stopTimes/stopId/', stop[0].stop_id);
 			let recentStopTimes = filterStopTimes(stopTimes, 300, 1800);
 	
 			// Get trip updates for trips
@@ -38,13 +38,13 @@ module.exports = NodeHelper.create({
 			
 			// Determine if trip is active and esimated arrival time
 			for(let i = 0; i < recentStopTimes.length; i++) {
-				let stopTime = recentStopTimes[i]
+				let stopTime = recentStopTimes[i];
 				let tripUpdate = findTripUpdate(tripUpdates, stopTime.trip_id);
 				// No trip update means the trip is not is progress
 				if(tripUpdate) {
-					let stopTimeUpdate = tripUpdate.entity[0].trip_update.stop_time_update
+					let stopTimeUpdate = tripUpdate.entity[0].trip_update.stop_time_update;
 					// arrival / departure tag is interchangeable for busses
-					let departureUpdate = stopTimeUpdate.departure ? stopTimeUpdate.departure : stopTimeUpdate.arrival;
+					let departureUpdate = stopTimeUpdate.arrival ? stopTimeUpdate.arrival : stopTimeUpdate.departure;
 					// check if bus has passed our stop
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
 						let deltaArrivalTime = getDeltaTime(stopTime.arrival_time_seconds, departureUpdate.delay);
