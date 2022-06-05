@@ -11,7 +11,11 @@ Module.register("MMM-AT-Bus",{
         console.log("Starting module: " + this.name);
         var self = this;
 
-        let payload = {bus: this.config.bus, stopCode: this.config.stopCode, key: this.config.key}
+        let payload = {
+            bus: this.config.bus, 
+            stopCode: this.config.stopCode, 
+            key: this.config.key
+        }
 		
         
         //Do this once first
@@ -20,7 +24,7 @@ Module.register("MMM-AT-Bus",{
         //Then every hour
         setInterval(function() {
             self.sendSocketNotification('START', payload);
-        }, 3000); //perform every 30 seconds (30000 milliseconds)
+        }, 3000); 
     },
 
 	// Override dom generator.
