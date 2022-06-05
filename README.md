@@ -1,7 +1,7 @@
 # MMM-AT-Bus
 This an extension for the [MagicMirror](https://github.com/MichMich/MagicMirror). It will display the minutes until arrival of a selected bus number to a selected stop. The bus number and stop code can be configured in the config file. To use this module you will need to create a free Auckland Transport Developer Portal account.
 
-Example shown top left:
+### Example shown top left:
 ![MMM-AT-Bus Module Example](https://github.com/Estanz0/MMM-AT-Bus/blob/master/demo_image_full.png?raw=true)
 
 ## Installation
