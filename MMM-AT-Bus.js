@@ -2,7 +2,7 @@ Module.register("MMM-AT-Bus",{
     // Default module config.
 	defaults: {
 		bus: '814',
-		stopCode: '3496',
+		stopCode: '7036',
 		key: 'key'
 	},
 
@@ -24,7 +24,7 @@ Module.register("MMM-AT-Bus",{
         //Then every hour
         setInterval(function() {
             self.sendSocketNotification('START', payload);
-        }, 3000); 
+        }, 15000); 
     },
 
 	// Override dom generator.
@@ -38,14 +38,21 @@ Module.register("MMM-AT-Bus",{
         }
 
         var wrapper = document.createElement("div");
-        wrapper.innerHTML = body;
+        if (body.timeArr) {
+            for(let i = 0; i < body.timeArr.length; i++){
+                var p = document.createElement("p");
+                var text = document.createTextNode(body.timeArr[i]);
+                p.appendChild(text);
+                wrapper.appendChild(p);
+            }
+        }	
         return wrapper;
     },
 	socketNotificationReceived: function(notification, payload) {
         Log.log("MMM-AT-Bus socket received from Node Helper");
         if(notification == "AT_GETREQUEST_RESULT"){
             Log.log(payload);
-            this.text = payload.timeArr;
+            this.text = payload;
             this.updateDom();
         }
     }
