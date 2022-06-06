@@ -20,43 +20,47 @@ module.exports = NodeHelper.create({
 	ATGetRequest: function(bus, stopCode, key) {
 		var self = this;
 		var payload = {};
-		
 
-		apiCalls = async (payload) => {
+		apiCalls = async () => {
 			// Get stop by code
 			const stop = await apiCall('general', 'stops/stopCode/', stopCode);
-	
+
 			// Get rotes by stop
 			// const routes = await apiCall('general', 'routes/stopid/', stop[0].stop_id)
-	
+
 			// Get stop time by stop
 			const stopTimes = await apiCall('general', 'stopTimes/stopId/', stop[0].stop_id);
 			let recentStopTimes = filterStopTimes(stopTimes, 300, 1800);
-	
+
 			// Get trip updates for trips
 			const tripUpdates = await getTripUpdates(recentStopTimes);
 			
+			var timeArr = []
 			// Determine if trip is active and esimated arrival time
 			for(let i = 0; i < recentStopTimes.length; i++) {
 				let stopTime = recentStopTimes[i];
 				let tripUpdate = findTripUpdate(tripUpdates, stopTime.trip_id);
 				// No trip update means the trip is not is progress
-				if(tripUpdate) {
+				if(tripUpdate && tripUpdate.entity[0].trip_update.stop_time_update) {
 					let stopTimeUpdate = tripUpdate.entity[0].trip_update.stop_time_update;
 					// arrival / departure tag is interchangeable for busses
-					let departureUpdate = stopTimeUpdate.arrival ? stopTimeUpdate.arrival : stopTimeUpdate.departure;
+					var departureUpdate = Object.keys(stopTimeUpdate).includes("arrival") ? stopTimeUpdate.arrival : stopTimeUpdate.departure;
+					
 					// check if bus has passed our stop
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
 						let deltaArrivalTime = getDeltaTime(stopTime.arrival_time_seconds, departureUpdate.delay);
-						payload.timeArr = bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
+						timeArr.push(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
+						// payload.timeArr.push(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
 						// console.log(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes')
 					}
 				} else {
 					// payload.timeSch = bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
 					payload.timeSch = bus + ' | Scheduled arrival: ' + stopTime.arrival_time;
 				}
-            }
-            self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
+			}
+			payload.timeArr = timeArr;
+			// createDOM(payload);
+			self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
 		}
 
 		async function apiCall(feed, urlExt, id) {
@@ -79,7 +83,7 @@ module.exports = NodeHelper.create({
 				return err;
 			});
 		}
-	
+
 		async function getTripUpdates(stopTimes) {
 			let result;
 			let promises = [];
@@ -89,7 +93,7 @@ module.exports = NodeHelper.create({
 			result =  Promise.all(promises);
 			return result
 		}
-	
+
 		function filterStopTimes(stopTimes, timeBefore, timeAfter) {
 			var now = new Date();
 			var timeInSeconds = getTimeInSeconds(now);
@@ -101,37 +105,37 @@ module.exports = NodeHelper.create({
 				return (stopTime.arrival_time_seconds >= lowerTime && stopTime.arrival_time_seconds <= upperTime);
 			});
 		}
-	
+
 		function findTripUpdate(tripUpdates, stopId) {
 			return tripUpdates.find(function(tripUpdate) {
 				return (tripUpdate.hasOwnProperty('entity')) && (tripUpdate.entity.length !== 0) && (tripUpdate.entity[0].id === stopId);
 			});
 		}
-	
+
 		function secondsToMinutes(seconds) {
 			return Math.floor(seconds / 60);
 		}
-	
+
 		function getTimeInSeconds(date) {
 			return (date.getHours() * 3600) + (date.getMinutes() * 60) + date.getSeconds();
 		}
-	
+
 		function findRoute(route) {
 			return route.route_short_name === bus;
 		}
-	
+
 		function findStop(stop) {
 			return stop.stop_code === stopCode;
 		}
-	
+
 		function getDeltaTime(scheduledTime, delay) {
 			let now = new Date();
 			let nowSeconds = getTimeInSeconds(now);
 			let delta = (scheduledTime + delay) - nowSeconds;
 			return secondsToMinutes(delta);
-	
+
 		}
 
-		apiCalls(payload)
+		apiCalls();
 	}
 });
