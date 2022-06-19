@@ -23,13 +23,18 @@ module.exports = NodeHelper.create({
 		const key = configPayload.key;
 		const forwardLimit = +configPayload.forwardLimit;
 		const backLimit = +configPayload.backLimit;
+		var stopName = configPayload.stopName;
 
 		var self = this;
 		var payload = {};
 
 		apiCalls = async () => {
-			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
+			if (!stopName) {
+				var stopDetails = await apiCall('general', 'stops/stopCode/', stopCode)
+				stopName = stopDetails[0].stop_name;
+			}
 
+			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
 			if(bus) {
 				stopTimes = filterStopTimesByBus(stopTimes, bus);
 			}
@@ -59,14 +64,25 @@ module.exports = NodeHelper.create({
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
 						var arrTime = getTimeInSecondsStr(stopTime.departure_time);
 						let deltaArrivalTime = getDeltaTime(arrTime, departureUpdate.delay);
-						timeArr.push(stopTime.route_short_name + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
+
+						var arrival_time = {
+							bus: stopTime.route_short_name,
+							time_minutes: deltaArrivalTime
+						};
+
+						timeArr.push(arrival_time);
 					}
 				} else {
-					timeSch.push(stopTime.route_short_name + ' | Scheduled arrival: ' + stopTime.departure_time);
+					var arrival_time = {
+						bus: stopTime.route_short_name,
+						time: stopTime.departure_time
+					}
+					timeSch.push(arrival_time);
 				}
 			}
 			payload.timeArr = timeArr;
 			payload.timeSch = timeSch;
+			payload.stopName = stopName;
 			// createDOM(payload);
 			self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
 		}
