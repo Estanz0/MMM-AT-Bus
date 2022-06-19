@@ -49,12 +49,12 @@ Module.register("MMM-AT-Bus",{
             }
         }	
 
-        if (body.timeArr) {
-            if(body.timeArr.length > 1) {
+        if (body.timeSch) {
+            if(body.timeSch.length > 1) {
                 payloadEmpty = false;
                 wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("-------------")));
             }
-            for(let i = 0; i < body.timeArr.length; i++){
+            for(let i = 0; i < body.timeSch.length; i++){
                 var p = document.createElement("p");
                 var text = document.createTextNode(body.timeSch[i]);
                 p.appendChild(text);
