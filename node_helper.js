@@ -59,10 +59,20 @@ module.exports = NodeHelper.create({
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
 						var arrTime = getTimeInSecondsStr(stopTime.departure_time);
 						let deltaArrivalTime = getDeltaTime(arrTime, departureUpdate.delay);
-						timeArr.push(stopTime.route_short_name + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
+
+						var arrival_time = {
+							bus: stopTime.route_short_name,
+							time_minutes: deltaArrivalTime
+						};
+
+						timeArr.push(arrival_time);
 					}
 				} else {
-					timeSch.push(stopTime.route_short_name + ' | Scheduled arrival: ' + stopTime.departure_time);
+					var arrival_time = {
+						bus: stopTime.route_short_name,
+						time: stopTime.departure_time
+					}
+					timeSch.push(arrival_time);
 				}
 			}
 			payload.timeArr = timeArr;

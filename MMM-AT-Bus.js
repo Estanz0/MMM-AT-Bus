@@ -38,25 +38,26 @@ Module.register("MMM-AT-Bus",{
         var payloadEmpty = true;
 
         var wrapper = document.createElement("div");
-        if (body.timeArr) {
-            if(body.timeArr.lenght > 1)
-                payloadEmpty = false;
+        if (body.timeArr && body.timeArr.length > 1) {
+            payloadEmpty = false;
             for(let i = 0; i < body.timeArr.length; i++){
+                var busNum = body.timeArr[i].bus;
+                var minutes = body.timeArr[i].time_minutes;
                 var p = document.createElement("p");
-                var text = document.createTextNode(body.timeArr[i]);
+                var text = document.createTextNode(busNum + " | Ariving in: " + minutes + " minutes") ;
                 p.appendChild(text);
                 wrapper.appendChild(p);
             }
         }	
 
-        if (body.timeSch) {
-            if(body.timeSch.length > 1) {
-                payloadEmpty = false;
-                wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("-------------")));
-            }
+        if (body.timeSch && body.timeSch.length > 1) {
+            payloadEmpty = false;
+            wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("-------------")));
             for(let i = 0; i < body.timeSch.length; i++){
+                var busNum = body.timeSch[i].bus;
+                var time = body.timeSch[i].time;
                 var p = document.createElement("p");
-                var text = document.createTextNode(body.timeSch[i]);
+                var text = document.createTextNode(busNum + " | Scheduled arrival: " + time);
                 p.appendChild(text);
                 wrapper.appendChild(p);
             }
