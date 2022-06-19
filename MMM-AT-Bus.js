@@ -6,7 +6,8 @@ Module.register("MMM-AT-Bus",{
         forwardLimit: '1800',   // seconds. Ignore bus trips further in the future
         backLimit: '300',       // seconds. Ignore bus trips further in the past
         refresh: '10',          // seconds. Refresh rate 
-		key: 'key'
+        key: 'key',
+        stopName: ''            // Populated on first run
 	},
 
 	start: function() {
@@ -35,6 +36,8 @@ Module.register("MMM-AT-Bus",{
             body = this.text;
         }
 
+        this.config.stopName = body.stopName
+
         var payloadEmpty = true;
 
         var wrapper = document.createElement("table");
@@ -44,9 +47,9 @@ Module.register("MMM-AT-Bus",{
         var th = document.createElement("th");
         var text = ""
         if (this.config.bus) {
-            text = "Next Arrivals for " + this.config.bus + " at stop " + this.config.stopCode;
+            text = this.config.stopName + " (" + this.config.bus + ")";
         } else {
-            text = "Next Arrivals at stop " + this.config.stopCode;
+            text = this.config.stopName;
         }
         var text = document.createTextNode(text) ;
         th.appendChild(text);
@@ -74,7 +77,6 @@ Module.register("MMM-AT-Bus",{
         if (body.timeSch) {
             if(body.timeSch.length > 1) {
                 payloadEmpty = false;
-                wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("-------------")));
             }
             for(let i = 0; i < body.timeSch.length; i++){
                 var busNum = body.timeSch[i].bus;
@@ -96,7 +98,6 @@ Module.register("MMM-AT-Bus",{
 	socketNotificationReceived: function(notification, payload) {
         Log.log("MMM-AT-Bus socket received from Node Helper");
         if(notification == "AT_GETREQUEST_RESULT"){
-            Log.log(payload);
             this.text = payload;
             this.updateDom();
         }

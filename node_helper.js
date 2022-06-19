@@ -23,13 +23,18 @@ module.exports = NodeHelper.create({
 		const key = configPayload.key;
 		const forwardLimit = +configPayload.forwardLimit;
 		const backLimit = +configPayload.backLimit;
+		var stopName = configPayload.stopName;
 
 		var self = this;
 		var payload = {};
 
 		apiCalls = async () => {
-			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
+			if (!stopName) {
+				var stopDetails = await apiCall('general', 'stops/stopCode/', stopCode)
+				stopName = stopDetails[0].stop_name;
+			}
 
+			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
 			if(bus) {
 				stopTimes = filterStopTimesByBus(stopTimes, bus);
 			}
@@ -77,6 +82,7 @@ module.exports = NodeHelper.create({
 			}
 			payload.timeArr = timeArr;
 			payload.timeSch = timeSch;
+			payload.stopName = stopName;
 			// createDOM(payload);
 			self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
 		}
