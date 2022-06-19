@@ -1,8 +1,11 @@
 Module.register("MMM-AT-Bus",{
     // Default module config.
 	defaults: {
-		bus: '814',
-		stopCode: '7036',
+		bus: '',
+        stopCode: '',
+        forwardLimit: '1800',   // seconds. Ignore bus trips further in the future
+        backLimit: '300',       // seconds. Ignore bus trips further in the past
+        refresh: '10',          // seconds. Refresh rate 
 		key: 'key'
 	},
 
@@ -11,20 +14,15 @@ Module.register("MMM-AT-Bus",{
         console.log("Starting module: " + this.name);
         var self = this;
 
-        let payload = {
-            bus: this.config.bus, 
-            stopCode: this.config.stopCode, 
-            key: this.config.key
-        }
+        let payload = this.config
 		
-        
         //Do this once first
         self.sendSocketNotification('START', payload);
 
         //Then every hour
         setInterval(function() {
             self.sendSocketNotification('START', payload);
-        }, 15000); 
+        }, (+this.config.refresh) * 1000); 
     },
 
 	// Override dom generator.
@@ -37,8 +35,12 @@ Module.register("MMM-AT-Bus",{
             body = this.text;
         }
 
+        var payloadEmpty = true;
+
         var wrapper = document.createElement("div");
         if (body.timeArr) {
+            if(body.timeArr.lenght > 1)
+                payloadEmpty = false;
             for(let i = 0; i < body.timeArr.length; i++){
                 var p = document.createElement("p");
                 var text = document.createTextNode(body.timeArr[i]);
@@ -46,6 +48,23 @@ Module.register("MMM-AT-Bus",{
                 wrapper.appendChild(p);
             }
         }	
+
+        if (body.timeArr) {
+            if(body.timeArr.length > 1) {
+                payloadEmpty = false;
+                wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("-------------")));
+            }
+            for(let i = 0; i < body.timeArr.length; i++){
+                var p = document.createElement("p");
+                var text = document.createTextNode(body.timeSch[i]);
+                p.appendChild(text);
+                wrapper.appendChild(p);
+            }
+        }	
+
+        if (payloadEmpty) {
+            wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("Finding Bus Arrival Times...")))
+        }
         return wrapper;
     },
 	socketNotificationReceived: function(notification, payload) {

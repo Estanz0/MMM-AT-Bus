@@ -14,51 +14,59 @@ module.exports = NodeHelper.create({
 
 	socketNotificationReceived: function(notification, payload) {
 		console.log(this.name + " node helper received a socket notification: " + notification);
-		this.ATGetRequest(payload.bus, payload.stopCode, payload.key);
+		this.ATGetRequest(payload);
 	},
 
-	ATGetRequest: function(bus, stopCode, key) {
+	ATGetRequest: function(configPayload) {
+		const bus = configPayload.bus;
+		const stopCode = configPayload.stopCode;
+		const key = configPayload.key;
+		const forwardLimit = +configPayload.forwardLimit;
+		const backLimit = +configPayload.backLimit;
+
 		var self = this;
 		var payload = {};
 
 		apiCalls = async () => {
-			// Get stop by code
-			const stop = await apiCall('general', 'stops/stopCode/', stopCode);
+			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
 
-			// Get rotes by stop
-			// const routes = await apiCall('general', 'routes/stopid/', stop[0].stop_id)
+			if(bus) {
+				stopTimes = filterStopTimesByBus(stopTimes, bus);
+			}
 
-			// Get stop time by stop
-			const stopTimes = await apiCall('general', 'stopTimes/stopId/', stop[0].stop_id);
-			let recentStopTimes = filterStopTimes(stopTimes, 300, 1800);
+			stopTimes = filterStopTimes(stopTimes, backLimit, forwardLimit);
 
 			// Get trip updates for trips
-			const tripUpdates = await getTripUpdates(recentStopTimes);
+			const tripUpdates = await getTripUpdates(stopTimes);
 			
+			// Arrays for payload
 			var timeArr = []
+			var timeSch = []
+			
 			// Determine if trip is active and esimated arrival time
-			for(let i = 0; i < recentStopTimes.length; i++) {
-				let stopTime = recentStopTimes[i];
+			for(let i = 0; i < stopTimes.length; i++) {
+				let stopTime = stopTimes[i];
 				let tripUpdate = findTripUpdate(tripUpdates, stopTime.trip_id);
+
 				// No trip update means the trip is not is progress
 				if(tripUpdate && tripUpdate.entity[0].trip_update.stop_time_update) {
 					let stopTimeUpdate = tripUpdate.entity[0].trip_update.stop_time_update;
+
 					// arrival / departure tag is interchangeable for busses
 					var departureUpdate = Object.keys(stopTimeUpdate).includes("arrival") ? stopTimeUpdate.arrival : stopTimeUpdate.departure;
 					
 					// check if bus has passed our stop
 					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
-						let deltaArrivalTime = getDeltaTime(stopTime.arrival_time_seconds, departureUpdate.delay);
-						timeArr.push(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
-						// payload.timeArr.push(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
-						// console.log(bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes')
+						var arrTime = getTimeInSecondsStr(stopTime.departure_time);
+						let deltaArrivalTime = getDeltaTime(arrTime, departureUpdate.delay);
+						timeArr.push(stopTime.route_short_name + ' | Arriving in: ' + deltaArrivalTime + ' minutes');
 					}
 				} else {
-					// payload.timeSch = bus + ' | Arriving in: ' + deltaArrivalTime + ' minutes';
-					payload.timeSch = bus + ' | Scheduled arrival: ' + stopTime.arrival_time;
+					timeSch.push(stopTime.route_short_name + ' | Scheduled arrival: ' + stopTime.departure_time);
 				}
 			}
 			payload.timeArr = timeArr;
+			payload.timeSch = timeSch;
 			// createDOM(payload);
 			self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
 		}
@@ -102,7 +110,14 @@ module.exports = NodeHelper.create({
 			var upperTime = timeInSeconds + timeAfter;
 			upperTime = upperTime > 86400 ? upperTime - 86400 : upperTime;
 			return stopTimes.filter(function(stopTime) {
-				return (stopTime.arrival_time_seconds >= lowerTime && stopTime.arrival_time_seconds <= upperTime);
+				var arrTime = getTimeInSecondsStr(stopTime.departure_time);
+				return (arrTime >= lowerTime && arrTime <= upperTime);
+			});
+		}
+
+		function filterStopTimesByBus(stopTimes, bus) {
+			return stopTimes.filter(function(stopTime) {
+				return (stopTime.route_short_name === bus);
 			});
 		}
 
@@ -120,13 +135,18 @@ module.exports = NodeHelper.create({
 			return (date.getHours() * 3600) + (date.getMinutes() * 60) + date.getSeconds();
 		}
 
-		function findRoute(route) {
-			return route.route_short_name === bus;
+		function getTimeInSecondsStr(str) { 
+			var a = str.split(':');
+			return (+a[0]) * 3600 + (+a[1]) * 60 + (+a[2]); 
 		}
 
-		function findStop(stop) {
-			return stop.stop_code === stopCode;
-		}
+		// function findRoute(route) {
+		// 	return route.route_short_name === bus;
+		// }
+
+		// function findStop(stop) {
+		// 	return stop.stop_code === stopCode;
+		// }
 
 		function getDeltaTime(scheduledTime, delay) {
 			let now = new Date();
