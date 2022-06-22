@@ -82,3 +82,6 @@ AT app:
 
 #### Only Stop Code configured
 <img src="https://github.com/Estanz0/MMM-AT-Bus/blob/master/resources/MMM-AT-Bus_Stop.png" width="800" alt="Loading">
+
+## Check out the other modules here
+[3rd party Magic Mirror modules](https://github.com/MichMich/MagicMirror/wiki/3rd-Party-Modules)
