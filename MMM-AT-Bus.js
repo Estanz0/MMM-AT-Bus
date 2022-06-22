@@ -3,11 +3,12 @@ Module.register("MMM-AT-Bus",{
 	defaults: {
 		bus: '',
         stopCode: '',
-        forwardLimit: '1800',   // seconds. Ignore bus trips further in the future
+        forwardLimit: '1200',   // seconds. Ignore bus trips further in the future
         backLimit: '300',       // seconds. Ignore bus trips further in the past
         refresh: '10',          // seconds. Refresh rate 
         key: 'key',
-        stopName: ''            // Populated on first run
+        stopName: '',           // Populated on first run
+        responseReceived: false
 	},
 
 	start: function() {
@@ -91,7 +92,8 @@ Module.register("MMM-AT-Bus",{
         }		
         if (payloadEmpty) {
             wrapper = document.createElement("div");
-            wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode("Finding Bus Arrival Times...")))
+            var text = this.config.responseReceived ? "No Upcoming Arrivals" : "Finding Bus Arrival Times...";
+            wrapper.appendChild(document.createElement("p").appendChild(document.createTextNode(text)))
         }
         return wrapper;
     },
@@ -99,6 +101,7 @@ Module.register("MMM-AT-Bus",{
         Log.log("MMM-AT-Bus socket received from Node Helper");
         if(notification == "AT_GETREQUEST_RESULT"){
             this.text = payload;
+            this.config.responseReceived = true;
             this.updateDom();
         }
     }

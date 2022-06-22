@@ -21,7 +21,7 @@ module.exports = NodeHelper.create({
 		const bus = configPayload.bus;
 		const stopCode = configPayload.stopCode;
 		const key = configPayload.key;
-		const forwardLimit = +configPayload.forwardLimit;
+		var forwardLimit = +configPayload.forwardLimit;
 		const backLimit = +configPayload.backLimit;
 		var stopName = configPayload.stopName;
 
@@ -37,8 +37,10 @@ module.exports = NodeHelper.create({
 			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
 			if(bus) {
 				stopTimes = filterStopTimesByBus(stopTimes, bus);
+				// Increase forward limit if tracking a single bus
+				forwardLimit *= 2;
 			}
-
+			
 			stopTimes = filterStopTimes(stopTimes, backLimit, forwardLimit);
 
 			// Get trip updates for trips
