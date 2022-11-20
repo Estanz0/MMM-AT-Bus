@@ -3,7 +3,7 @@ Module.register("MMM-AT-Bus",{
 	defaults: {
 		bus: '',
         stopCode: '',
-        forwardLimit: '1200',   // seconds. Ignore bus trips further in the future
+        forwardLimit: '',   // seconds. Ignore bus trips further in the future
         backLimit: '300',       // seconds. Ignore bus trips further in the past
         refresh: '10',          // seconds. Refresh rate 
         key: 'key',
