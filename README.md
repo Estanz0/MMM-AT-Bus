@@ -20,7 +20,8 @@ modules: [
         config: {
             bus: '755', 
             stopCode: '7661', 
-            key: 'key'          // AT Developer key (https://dev-portal.at.govt.nz/)
+	    forwardLimit: '3600',  // seconds. Ignore bus trips further in the future
+            key: 'key'             // AT Developer key (https://dev-portal.at.govt.nz/)
         }
     }
 ]
@@ -41,26 +42,33 @@ The following properties can be configured:
 	<tbody>
 		<tr>
 			<td><code>bus</code></td>
-            <td>The bus route number or code. 
-                </br>
-                Find your bus route via the AT <a href="https://at.govt.nz/bus-train-ferry/more-services/at-mobile-app/">app</a> or <a href="https://at.govt.nz/bus-train-ferry/timetables/#bus">website</a>.
+            		<td>The bus route number or code. 
+                		</br>
+                		Find your bus route via the AT <a href="https://at.govt.nz/bus-train-ferry/more-services/at-mobile-app/">app</a> or <a href="https://at.govt.nz/bus-train-ferry/timetables/#bus">website</a>.
 			</td>
 		</tr>
 		<tr>
 			<td><code>stopCode</code></td>
 			<td>The bus stop code. 
-                </br>
-                This can be found using the AT app, website or Google maps.
-            </td>
+                		</br>
+                		This can be found using the AT app, website or Google maps.
+            		</td>
 		</tr>
-        <tr>
+		<tr>
+			<td><code>forwardLimit</code></td>
+			<td>Seconds.
+                		</br>
+				Buses arriving further in the future than this limit will not be displayed.
+            		</td>
+		</tr>
+        	<tr>
 			<td><code>key</code></td>
 			<td>A developer API key for AT APIs. 
-                </br>
-                This can be obtained by signing up for a developer account through the <a href="https://dev-portal.at.govt.nz/">AT developer portal</a>.
-                </br>
-                Note: it can take a few days for your developer account to be activated after signing up.
-            </td>
+                		</br>
+                		This can be obtained by signing up for a developer account through the <a href="https://dev-portal.at.govt.nz/">AT developer portal</a>.
+                		</br>
+                		Note: it can take a few days for your developer account to be activated after signing up.
+            		</td>
 		</tr>
 	</tbody>
 </table>
