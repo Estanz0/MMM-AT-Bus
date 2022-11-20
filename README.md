@@ -20,7 +20,8 @@ modules: [
         config: {
             bus: '755', 
             stopCode: '7661', 
-            key: 'key'          // AT Developer key (https://dev-portal.at.govt.nz/)
+	    forwardLimit: '3600',  // seconds. Ignore bus trips further in the future
+            key: 'key'             // AT Developer key (https://dev-portal.at.govt.nz/)
         }
     }
 ]
@@ -52,6 +53,13 @@ The following properties can be configured:
                 </br>
                 This can be found using the AT app, website or Google maps.
             </td>
+		</tr>
+		<tr>
+			<td><code>forwardLimit</code></td>
+			<td>Seconds.
+                		</br>
+				Buses arriving further in the future than this limit will not be displayed.
+            		</td>
 		</tr>
         <tr>
 			<td><code>key</code></td>
