@@ -65,7 +65,7 @@ The following properties can be configured:
 			<td><code>key</code></td>
 			<td>A developer API key for AT APIs. 
                 </br>
-                This can be obtained by signing up for a developer account through the <a href="https://dev-portal.at.govt.nz/">AT developer portal</a>.
+                This can be obtained by signing up for a developer account (subscription) through the <a href="https://dev-portal.at.govt.nz/products/">AT developer portal product subscription</a>.
                 </br>
                 Note: it can take a few days for your developer account to be activated after signing up.
             </td>
