@@ -4,174 +4,327 @@
  */
 
 const NodeHelper = require("node_helper");
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
+
+const api_config = {
+	AT: {
+		name: "Auckland Transport",
+		header_key: "Ocp-Apim-Subscription-Key",
+		endpoints: {
+			gtfs_static: {
+				url: "https://api.at.govt.nz/gtfs/v3",
+				routes: {
+					endpoint: "/routes",
+					query_param_keys: [],
+					data_location: ["data"],
+					record_location: ["attributes"]
+				},
+				stops: {
+					endpoint: "/stops",
+					query_param_keys: ["filter[stop_code]"],
+					data_location: ["data"],
+					record_location: ["attributes"]
+				},
+				stop_trips: {
+					endpoint: "/stops/{{id}}/stoptrips",
+					query_param_keys: [
+						"filter[date]",
+						"filter[start_hour]",
+						"filter[hour_range]"
+					],
+					data_location: ["data"],
+					record_location: ["attributes"]
+				},
+				stop_times: {
+					endpoint: "/trips/{{id}}/stoptimes",
+					query_param_keys: [],
+					data_location: ["data"],
+					record_location: ["attributes"]
+				}
+			},
+			gtfs_realtime: {
+				url: "https://api.at.govt.nz/realtime/legacy",
+				trip_updates: {
+					endpoint: "/tripupdates",
+					query_param_keys: ["tripid"],
+					data_location: ["response", "entity"],
+					record_location: ["trip_update"]
+				}
+			}
+		}
+	},
+	Metlink: {
+		name: "Metlink"
+	},
+	Metro: {
+		name: "Metro"
+	}
+};
 
 module.exports = NodeHelper.create({
 	// Subclass start method.
-	start: function() {
+	start: function () {
 		console.log("Started node_helper.js for MMM-AT-Bus.");
 	},
 
-	socketNotificationReceived: function(notification, payload) {
-		console.log(this.name + " node helper received a socket notification: " + notification);
+	socketNotificationReceived: function (notification, payload) {
+		console.log(
+			this.name +
+				" node helper received a socket notification: " +
+				notification
+		);
 		this.ATGetRequest(payload);
 	},
 
-	ATGetRequest: function(configPayload) {
-		const bus = configPayload.bus;
+	ATGetRequest: function (configPayload) {
+		const provider_name = configPayload.provider;
+		const routeShortNames = configPayload.routeShortNames;
 		const stopCode = configPayload.stopCode;
 		const key = configPayload.key;
-		var forwardLimit = +configPayload.forwardLimit;
-		const backLimit = +configPayload.backLimit;
+		const forwardLimitHours = +configPayload.forwardLimitHours;
 		var stopName = configPayload.stopName;
+		var stopId = configPayload.stopId;
+		var routeIdToShortName = configPayload.routeIdToShortName;
 
 		var self = this;
 		var payload = {};
 
 		apiCalls = async () => {
-			if (!stopName) {
-				var stopDetails = await apiCall('general', 'stops/stopCode/', stopCode)
-				stopName = stopDetails[0].stop_name;
-			}
+			// Todays Date and Time
+			var today = new Date();
 
-			var stopTimes = await apiCall('general', 'stops/stopInfo/', stopCode)
-			if(bus) {
-				stopTimes = filterStopTimesByBus(stopTimes, bus);
-				// Increase forward limit if tracking a single bus
-				forwardLimit *= 2;
-			}
-			
-			stopTimes = filterStopTimes(stopTimes, backLimit, forwardLimit);
-
-			// Get trip updates for trips
-			const tripUpdates = await getTripUpdates(stopTimes);
-			
-			// Arrays for payload
-			var timeArr = []
-			var timeSch = []
-			
-			// Determine if trip is active and esimated arrival time
-			for(let i = 0; i < stopTimes.length; i++) {
-				let stopTime = stopTimes[i];
-				let tripUpdate = findTripUpdate(tripUpdates, stopTime.trip_id);
-
-				// No trip update means the trip is not is progress
-				if(tripUpdate && tripUpdate.entity[0].trip_update.stop_time_update) {
-					let stopTimeUpdate = tripUpdate.entity[0].trip_update.stop_time_update;
-
-					// arrival / departure tag is interchangeable for busses
-					var departureUpdate = Object.keys(stopTimeUpdate).includes("arrival") ? stopTimeUpdate.arrival : stopTimeUpdate.departure;
-					
-					// check if bus has passed our stop
-					if(stopTime.stop_sequence > stopTimeUpdate.stop_sequence) {
-						var arrTime = getTimeInSecondsStr(stopTime.departure_time);
-						let deltaArrivalTime = getDeltaTime(arrTime, departureUpdate.delay);
-
-						var arrival_time = {
-							bus: stopTime.route_short_name,
-							time_minutes: deltaArrivalTime
-						};
-
-						timeArr.push(arrival_time);
-					}
-				} else {
-					var arrival_time = {
-						bus: stopTime.route_short_name,
-						time: stopTime.departure_time
-					}
-					timeSch.push(arrival_time);
+			// Get route ids
+			var routeIds = null;
+			if (routeIdToShortName) {
+				routeIds = Object.keys(routeIdToShortName);
+				if (routeIds.length === 0) {
+					routeIds = null;
 				}
 			}
-			payload.timeArr = timeArr;
-			payload.timeSch = timeSch;
+
+			// Stop Name and Stop ID
+			if (!stopName || !stopId) {
+				var stopDetails = await apiCall(
+					(provider = provider_name),
+					(api_name = "gtfs_static"),
+					(endpoint_name = "stops"),
+					(query_param_values = [stopCode]),
+					(ids = [])
+				);
+				stopName = stopDetails[0].stop_name;
+				stopId = stopDetails[0].stop_id;
+			}
+
+			// Routes
+			if (!routeIds) {
+				var routes = await apiCall(
+					(provider = provider_name),
+					(api_name = "gtfs_static"),
+					(endpoint_name = "routes"),
+					(query_param_values = []),
+					(ids = [])
+				);
+
+				if (routeShortNames) {
+					routes = routes.filter(function (route) {
+						return routeShortNames.includes(route.route_short_name);
+					});
+				}
+
+				routeIds = routes.map(function (route) {
+					return route.route_id;
+				});
+			}
+
+			// Get upcoming trips for the Stop
+			var allTrips = await apiCall(
+				(provider = provider_name),
+				(api_name = "gtfs_static"),
+				(endpoint_name = "stop_trips"),
+				(query_param_values = [
+					today.toISOString().split("T")[0],
+					today.getHours(),
+					forwardLimitHours
+				]),
+				(ids = [stopId])
+			);
+
+			// Filter trips by route
+			var trips = allTrips.filter(function (trip) {
+				return routeIds.includes(trip.route_id);
+			});
+
+			// Get stop times for trips
+			for (let i = 0; i < trips.length; i++) {
+				// prettier-ignore
+				var stopTimes = await apiCall(
+					(provider = provider_name),
+					(api_name = "gtfs_static"),
+					(endpoint_name = "stop_times"),
+					(query_param_values = []),
+					(ids = [trips[i].trip_id])
+				);
+
+				// Filter stop times by stop
+				stopTimes = stopTimes.filter(function (stopTime) {
+					return stopTime.stop_id === stopId;
+				});
+
+				trips[i].stop_time = stopTimes[0];
+			}
+
+			// Get trip updates
+			var tripIds = trips.map(function (trip) {
+				return trip.trip_id;
+			});
+
+			var tripUpdates = await apiCall(
+				(provider = provider_name),
+				(api_name = "gtfs_realtime"),
+				(endpoint_name = "trip_updates"),
+				(query_param_values = [tripIds]),
+				(ids = [])
+			);
+
+			// Add trip updates to trips
+			for (let i = 0; i < trips.length; i++) {
+				trips[i].trip_update = tripUpdates.find(function (tripUpdate) {
+					return trips[i].trip_id == tripUpdate.trip.trip_id;
+				});
+			}
+
+			// Create route_id -> short_name map
+			var routeIdToShortNameList = routes.map(function (route) {
+				return {
+					[route.route_id]: route.route_short_name
+				};
+			});
+			var routeIdToShortName = Object.assign(
+				{},
+				...routeIdToShortNameList
+			);
+
+			// Get arrival times
+			var scheduledTrips = [];
+			var inProgressTrips = [];
+			for (let i = 0; i < trips.length; i++) {
+				var trip = trips[i];
+				if (!trip.trip_update) {
+					scheduledTrips.push({
+						bus_name: routeIdToShortName[trip.route_id],
+						arrival_time: trip.stop_time.arrival_time
+					});
+				} else {
+					if (
+						trip.trip_update.stop_time_update.stop_sequence <=
+						trip.stop_time.stop_sequence
+					) {
+						// Use departure time if no arrival time given
+						var event = trip.trip_update.stop_time_update.arrival
+							? trip.trip_update.stop_time_update.arrival
+							: trip.trip_update.stop_time_update.departure;
+
+						var [hours, minutes, seconds] =
+							trip.stop_time.arrival_time.split(":").map(Number);
+						const scheduled_arriaval_time_date = new Date();
+						scheduled_arriaval_time_date.setHours(hours);
+						scheduled_arriaval_time_date.setMinutes(minutes);
+						scheduled_arriaval_time_date.setSeconds(seconds);
+						var scheduled_arriaval_time_seconds = Math.floor(
+							scheduled_arriaval_time_date.getTime() / 1000
+						);
+
+						var delay = event.delay;
+						var arrival_time =
+							scheduled_arriaval_time_seconds + delay;
+						var nowSeconds = Math.floor(today.getTime() / 1000);
+
+						inProgressTrips.push({
+							bus_name: routeIdToShortName[trip.route_id],
+							minutes_to_arrival: Math.floor(
+								(arrival_time - nowSeconds) / 60
+							)
+						});
+					}
+				}
+			}
+
+			payload.inProgressTrips = inProgressTrips;
+			payload.scheduledTrips = scheduledTrips;
 			payload.stopName = stopName;
-			// createDOM(payload);
-			self.sendSocketNotification('AT_GETREQUEST_RESULT', payload);
-		}
+			payload.provider_name = api_config[provider_name].name;
+			self.sendSocketNotification("AT_GETREQUEST_RESULT", payload);
+		};
 
-		async function apiCall(feed, urlExt, id) {
-			let url = 'https://api.at.govt.nz/v2/';
-			if(feed === 'general') {
-				url += 'gtfs/';
-			} else if(feed === 'realtime')  {
-				url += 'public/realtime/';
+		async function apiCall(
+			provider,
+			api_name,
+			endpoint_name,
+			query_param_values,
+			ids
+		) {
+			var url = api_config[provider].endpoints[api_name].url;
+			var endpoint_config =
+				api_config[provider].endpoints[api_name][endpoint_name];
+
+			var endpoint = endpoint_config.endpoint;
+			for (let i = 0; i < ids.length; i++) {
+				endpoint = endpoint.replace("{{id}}", ids[i]);
 			}
-			url += urlExt + id
-			return fetch(url, {
+
+			var query_params = "";
+			var query_param_keys = endpoint_config.query_param_keys;
+			if (query_param_keys.length > 0) {
+				query_params += "?";
+				for (let i = 0; i < query_param_keys.length; i++) {
+					query_params +=
+						query_param_keys[i] + "=" + query_param_values[i];
+					if (i < query_param_keys.length - 1) {
+						query_params += "&";
+					}
+				}
+			}
+
+			var fullUrl = url + endpoint + query_params;
+			var headers = { [api_config[provider].header_key]: key };
+
+			// console.log("fullUrl: ", fullUrl);
+			// console.log("headers: ", headers);
+
+			return fetch(fullUrl, {
 				method: "GET",
-				headers: {"Ocp-Apim-Subscription-Key": key}
+				headers: headers
 			})
-			.then(response => response.json()) 
-			.then(json => {
-				return json.response;
-			})
-			.catch(err => {
-				return err;
-			});
-		}
+				.then((response) => response.json())
+				.then((json) => {
+					var data = json[endpoint_config.data_location[0]];
 
-		async function getTripUpdates(stopTimes) {
-			let result;
-			let promises = [];
-			for(let i = 0; i < stopTimes.length; i++) {
-				promises.push(apiCall('realtime', 'tripupdates?tripid=', stopTimes[i].trip_id));
-			}
-			result =  Promise.all(promises);
-			return result
-		}
+					for (
+						let i = 1;
+						i < endpoint_config.data_location.length;
+						i++
+					) {
+						data = data[endpoint_config.data_location[i]];
+					}
 
-		function filterStopTimes(stopTimes, timeBefore, timeAfter) {
-			var now = new Date();
-			var timeInSeconds = getTimeInSeconds(now);
-			var lowerTime = timeInSeconds - timeBefore;
-			lowerTime = lowerTime < 0 ? 86400 + lowerTime : lowerTime;
-			var upperTime = timeInSeconds + timeAfter;
-			upperTime = upperTime > 86400 ? upperTime - 86400 : upperTime;
-			return stopTimes.filter(function(stopTime) {
-				var arrTime = getTimeInSecondsStr(stopTime.departure_time);
-				return (arrTime >= lowerTime && arrTime <= upperTime);
-			});
-		}
+					var records = data.map(function (record) {
+						var record_data = record;
+						for (
+							let i = 0;
+							i < endpoint_config.record_location.length;
+							i++
+						) {
+							record_data =
+								record_data[endpoint_config.record_location[i]];
+						}
+						return record_data;
+					});
 
-		function filterStopTimesByBus(stopTimes, bus) {
-			return stopTimes.filter(function(stopTime) {
-				return (stopTime.route_short_name === bus);
-			});
-		}
-
-		function findTripUpdate(tripUpdates, stopId) {
-			return tripUpdates.find(function(tripUpdate) {
-				return (tripUpdate.hasOwnProperty('entity')) && (tripUpdate.entity.length !== 0) && (tripUpdate.entity[0].id === stopId);
-			});
-		}
-
-		function secondsToMinutes(seconds) {
-			return Math.floor(seconds / 60);
-		}
-
-		function getTimeInSeconds(date) {
-			return (date.getHours() * 3600) + (date.getMinutes() * 60) + date.getSeconds();
-		}
-
-		function getTimeInSecondsStr(str) { 
-			var a = str.split(':');
-			return (+a[0]) * 3600 + (+a[1]) * 60 + (+a[2]); 
-		}
-
-		// function findRoute(route) {
-		// 	return route.route_short_name === bus;
-		// }
-
-		// function findStop(stop) {
-		// 	return stop.stop_code === stopCode;
-		// }
-
-		function getDeltaTime(scheduledTime, delay) {
-			let now = new Date();
-			let nowSeconds = getTimeInSeconds(now);
-			let delta = (scheduledTime + delay) - nowSeconds;
-			return secondsToMinutes(delta);
-
+					return records;
+				})
+				.catch((err) => {
+					return err;
+				});
 		}
 
 		apiCalls();
