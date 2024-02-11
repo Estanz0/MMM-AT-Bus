@@ -1,0 +1,22 @@
+{
+  "name": "MMM-AT-Bus",
+  "version": "1.0.0",
+  "description": "Module for MagicMirror² to display upcoming bus departures in Auckland using the Auckland Transport API.",
+  "main": "MMM-AT-Bus.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Estanz0/MMM-AT-Bus"
+  },
+  "keywords": [
+    "MagicMirror",
+    "transport",
+    "New Zealand",
+    "Auckland"
+  ],
+  "author": "Estanz0",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Estanz0/MMM-AT-Bus/issues"
+  },
+  "homepage": "https://github.com/Estanz0/MMM-AT-Bus/blob/master/README.md"
+}
