@@ -54,7 +54,43 @@ const api_config = {
 		}
 	},
 	Metlink: {
-		name: "Metlink"
+		name: "Metlink",
+		header_key: "x-api-key",
+		endpoints: {
+			gtfs_static: {
+				url: "https://api.opendata.metlink.org.nz/v1/gtfs",
+				routes: {
+					endpoint: "/routes",
+					query_param_keys: [],
+					data_location: [],
+					record_location: []
+				},
+				stops: {
+					endpoint: "/stops",
+					query_param_keys: [],
+					data_location: [],
+					record_location: []
+				},
+				stop_trips: {
+					endpoint: "/stops/{{id}}/stop_times",
+					query_param_keys: ["date"],
+					data_location: ["stop_times"]
+				},
+				stop_times: {
+					endpoint: "/trips/{{id}}/stoptimes",
+					query_param_keys: [],
+					data_location: ["stop_times"]
+				}
+			},
+			gtfs_realtime: {
+				url: "https://api.opendata.metlink.org.nz/v1/gtfs-rt",
+				trip_updates: {
+					endpoint: "/tripupdates",
+					query_param_keys: ["tripid"],
+					data_location: ["entity"]
+				}
+			}
+		}
 	},
 	Metro: {
 		name: "Metro"
@@ -111,6 +147,11 @@ module.exports = NodeHelper.create({
 					(query_param_values = [stopCode]),
 					(ids = [])
 				);
+
+				stopDetails = stopDetails.filter(function (stop) {
+					return stop.stop_code === stopCode;
+				});
+
 				stopName = stopDetails[0].stop_name;
 				stopId = stopDetails[0].stop_id;
 			}
@@ -297,7 +338,12 @@ module.exports = NodeHelper.create({
 			})
 				.then((response) => response.json())
 				.then((json) => {
-					var data = json[endpoint_config.data_location[0]];
+					var data;
+					if (endpoint_config.data_location.length === 0) {
+						data = json;
+					} else {
+						data = json[endpoint_config.data_location[0]];
+					}
 
 					for (
 						let i = 1;
